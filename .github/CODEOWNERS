@@ -1,0 +1,27 @@
+# Default owner for all changes. Replace with the correct GitHub team/user when moving to another project.
+* @patalphong
+
+# Workflow governance artifacts
+/.github/ @patalphong
+/AGENTS.md @patalphong
+/BICCORP-AI-WORKFLOW.md @patalphong
+/.codex-plugin/ @patalphong
+/ai-workflow/ @patalphong
+/skills/ @patalphong
+/memory-vault/ @patalphong
+/scripts/validate-ai-workflow.mjs @patalphong
+/scripts/validate-biccorp-ai-workflow.mjs @patalphong
+
+# Application shell and platform navigation
+/src/app/ @patalphong
+/src/components/app-layout.tsx @patalphong
+/src/store/ @patalphong
+
+# Data and release-sensitive files
+/prisma/ @patalphong
+/package.json @patalphong
+/package-lock.json @patalphong
+/bun.lock @patalphong
+/pnpm-lock.yaml @patalphong
+/yarn.lock @patalphong
+/Dockerfile @patalphong

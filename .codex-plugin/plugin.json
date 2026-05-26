@@ -1,0 +1,15 @@
+{
+  "name": "biccorp-global-ai-workflow",
+  "version": "0.1.0",
+  "description": "BICCORP global AI delivery workflow for ChatGPT, Hermes, Codex, and GitHub governance.",
+  "skills": [
+    {
+      "path": "skills/biccorp-codex-control"
+    }
+  ],
+  "docs": [
+    "BICCORP-AI-WORKFLOW.md",
+    "AGENTS.md",
+    "ai-workflow/policies/codex-control-policy.md"
+  ]
+}

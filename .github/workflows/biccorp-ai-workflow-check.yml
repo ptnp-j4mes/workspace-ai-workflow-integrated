@@ -1,0 +1,38 @@
+name: BICCORP AI Workflow Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+jobs:
+  validate-ai-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate workflow files
+        run: node scripts/validate-biccorp-ai-workflow.mjs
+
+      - name: Validate PR evidence sections
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          node - <<'NODE'
+          const body = process.env.PR_BODY || '';
+          const required = [
+            'Summary',
+            'Request ID',
+            'BICCORP AI Workflow Evidence',
+            'Tests / Validation',
+            'Risk',
+            'Rollback Plan'
+          ];
+          const missing = required.filter((s) => !body.includes(s));
+          if (missing.length) {
+            console.error('Missing PR sections: ' + missing.join(', '));
+            process.exit(1);
+          }
+          console.log('PR evidence sections found.');
+          NODE

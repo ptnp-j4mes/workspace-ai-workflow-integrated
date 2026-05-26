@@ -1,0 +1,1742 @@
+// ============================================================
+// Enterprise AI Workflow Platform - Database Schema
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Auth & RBAC
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String
+  avatarUrl    String?
+  departmentId String?
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  phone        String?
+  position     String?
+  timezone     String   @default("Asia/Bangkok")
+  locale       String   @default("th-TH")
+  themePreference String?
+  emailNotificationEnabled Boolean @default(true)
+  inAppNotificationEnabled Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department    Department?       @relation(fields: [departmentId], references: [id])
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  comments      RequestComment[]
+  attachments   RequestAttachment[]
+  assignedBAs   Request[]         @relation("AssignedBA")
+  assignedDevs  Request[]         @relation("AssignedDev")
+  assignedQAs   Request[]         @relation("AssignedQA")
+  workItems     WorkItemAssignment[]
+  actionItems   MeetingActionItem[]
+  notifications Notification[]
+  promptRuns    AiPromptRun[]
+  createdProjects    Project[]    @relation("ProjectCreator")
+  projectMemberships ProjectMember[]
+  createdRequests    Request[]    @relation("RequestCreator")
+  meetingParticipants MeetingParticipant[]
+  testResults    UatTestResult[]
+  bugReports     BugReport[]     @relation("BugReporter")
+  notificationPreferences NotificationPreference[]
+  approvalActions ApprovalAction[]
+  mitAssignees   MitStepAssignment[]
+  riskCreators   ProjectRisk[]   @relation("RiskCreator")
+  issueCreators  ProjectIssue[]  @relation("IssueCreator")
+  decisionCreators ProjectDecision[] @relation("DecisionCreator")
+  githubConnections GithubConnection[]
+  documentNumbers DocumentNumber[] @relation("DocumentNumberGenerator")
+  voidedDocuments DocumentNumber[] @relation("DocumentNumberVoider")
+  googleOAuthTokens GoogleOAuthToken[]
+  calendarEvents    GoogleCalendarEvent[]
+  activityDailies      ActivityDaily[]
+  approvedActivityDailies ActivityDaily[] @relation("ActivityDailyApprover")
+  platformRequests       PlatformRequest[] @relation("PlatformRequestRequester")
+  platformApprovals      PlatformRequestApproval[]
+  reviewedDivisionPlatforms  PlatformRequest[] @relation("PlatformRequestDivisionHead")
+  reviewedSDPlatforms        PlatformRequest[] @relation("PlatformRequestSDManager")
+  projectVersions            ProjectVersion[]  @relation("ProjectVersionCreator")
+  vaultNodes                 VaultNode[]       @relation("VaultNodeCreator")
+  vaultAttachments           VaultAttachment[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String @id @default(cuid())
+  key         String @unique
+  name        String
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+  menuPermissions MenuPermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  key         String @unique
+  name        String
+  module      String
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  type        String   @default("SECTION") // DIVISION (ฝ่าย) or SECTION (แผนก)
+  description String?  // e.g. "SD-ฝ่ายวิเคราะห์และพัฒนาซอฟต์แวร์"
+  parentId    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parent   Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children Department[] @relation("DepartmentTree")
+  users    User[]
+  jobPositions JobPosition[]
+  platformRequests PlatformRequest[]
+
+  @@map("departments")
+}
+
+model JobPosition {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  code         String   @unique
+  level        String?  // e.g. J1, J2, M1, M2, D1, EXE
+  category     String?  // e.g. ENGINEERING, BUSINESS, MANAGEMENT, SUPPORT
+  departmentId String?  // Optional link to a specific department/section
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@map("job_positions")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  aitNo       String?
+  oldValue    String?
+  newValue    String?
+  entityType  String?
+  userAgent   String?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ============================================================
+// Project
+// ============================================================
+
+model Project {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  status      String   @default("ACTIVE") // ACTIVE, ON_HOLD, COMPLETED, ARCHIVED
+  startDate   DateTime?
+  endDate     DateTime?
+  aitNo       String?  // AIT Project Document Number
+  healthScore Float?   // 0-100 calculated health score
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy      User             @relation("ProjectCreator", fields: [createdById], references: [id])
+  members        ProjectMember[]
+  requests       Request[]
+  meetings       Meeting[]
+  uatCycles      UatCycle[]
+  maintenanceAgs MaintenanceAgreement[]
+  githubRepos    ProjectGithubRepository[]
+  risks          ProjectRisk[]
+  issues         ProjectIssue[]
+  decisions      ProjectDecision[]
+  calendarEvents GoogleCalendarEvent[]
+  platformRequest PlatformRequest?
+  currentVersion Int      @default(1)
+  versions       ProjectVersion[]
+  vaultNodes     VaultNode[]
+  attachments    VaultAttachment[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
+  role      String // PROJECT_MANAGER, LEAD, MEMBER
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model ProjectVersion {
+  id          String   @id @default(cuid())
+  projectId   String
+  version     Int
+  name        String
+  description String?
+  status      String
+  startDate   DateTime?
+  endDate     DateTime?
+  aitNo       String?
+  healthScore Float?
+  changeLog   String?
+  changeType  String   @default("UPDATE") // CREATE, UPDATE, STATUS_CHANGE, RESTORE
+  snapshot    String   // JSON snapshot of all project fields at this version
+  createdById String
+  createdAt   DateTime @default(now())
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("ProjectVersionCreator", fields: [createdById], references: [id])
+
+  @@unique([projectId, version])
+  @@map("project_versions")
+}
+
+// ============================================================
+// Project Risk / Issue / Decision
+// ============================================================
+
+model ProjectRisk {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  probability String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  impact      String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  mitigation  String?
+  status      String   @default("IDENTIFIED") // IDENTIFIED, ANALYZING, MITIGATING, RESOLVED, ACCEPTED
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("RiskCreator", fields: [ownerId], references: [id])
+
+  @@map("project_risks")
+}
+
+model ProjectIssue {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  severity    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  resolution  String?
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("IssueCreator", fields: [ownerId], references: [id])
+
+  @@map("project_issues")
+}
+
+model ProjectDecision {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  decision    String?
+  rationale   String?
+  alternatives String?  // JSON array
+  status      String   @default("PROPOSED") // PROPOSED, ACCEPTED, REJECTED, DEFERRED
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  decidedBy User?  @relation("DecisionCreator", fields: [decidedById], references: [id])
+
+  @@map("project_decisions")
+}
+
+// ============================================================
+// Request
+// ============================================================
+
+model Request {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  title          String
+  description    String
+  type           String   // FEATURE, BUG, CHANGE, SUPPORT, QUESTION, INCIDENT
+  priority       String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status         String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED, ASSIGNED, IN_DEVELOPMENT, QA, UAT, COMPLETED, CLOSED
+  projectId      String?
+  affectedSystem String?
+  businessImpact String?
+  acceptanceCriteria String?
+  assignedBAId   String?
+  assignedDevId  String?
+  assignedQAId   String?
+  createdById    String
+  aitNo          String?  // AIT Request Document Number
+  dueDate        DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project       Project?        @relation(fields: [projectId], references: [id])
+  createdBy     User            @relation("RequestCreator", fields: [createdById], references: [id])
+  assignedBA    User?           @relation("AssignedBA", fields: [assignedBAId], references: [id])
+  assignedDev   User?           @relation("AssignedDev", fields: [assignedDevId], references: [id])
+  assignedQA    User?           @relation("AssignedQA", fields: [assignedQAId], references: [id])
+  comments      RequestComment[]
+  attachments   RequestAttachment[]
+  statusHistory RequestStatusHistory[]
+  aiDrafts      RequestAiDraft[]
+  workItems     WorkItem[]
+  bugReports    BugReport[]
+  changeRequests ChangeRequest[]
+
+  @@map("requests")
+}
+
+model RequestComment {
+  id        String   @id @default(cuid())
+  requestId String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("request_comments")
+}
+
+model RequestAttachment {
+  id        String   @id @default(cuid())
+  requestId String
+  userId    String
+  fileName  String
+  fileUrl   String
+  fileSize  Int?
+  mimeType  String?
+  createdAt DateTime @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("request_attachments")
+}
+
+model RequestStatusHistory {
+  id        String   @id @default(cuid())
+  requestId String
+  fromStatus String?
+  toStatus  String
+  comment   String?
+  changedById String?
+  createdAt DateTime @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_status_history")
+}
+
+model RequestAiDraft {
+  id          String   @id @default(cuid())
+  requestId   String?
+  suggestedType    String?
+  suggestedTitle   String?
+  suggestedDescription String?
+  suggestedPriority String?
+  missingFields    String?  // JSON array of field names
+  followUpQuestions String? // JSON array of questions
+  confidence       Float?
+  rawData          String?  // JSON
+  createdAt        DateTime @default(now())
+
+  request Request? @relation(fields: [requestId], references: [id])
+
+  @@map("request_ai_drafts")
+}
+
+// ============================================================
+// Workflow Engine
+// ============================================================
+
+model WorkflowDefinition {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  entityType  String   // REQUEST, WORK_ITEM, etc.
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps       WorkflowStep[]
+  transitions WorkflowTransition[]
+  instances   WorkflowInstance[]
+
+  @@map("workflow_definitions")
+}
+
+model WorkflowStep {
+  id                String   @id @default(cuid())
+  workflowDefId     String
+  name              String
+  stepKey           String
+  description       String?
+  allowedRoles      String?  // JSON array of role keys
+  slaHours          Int?
+  autoAssignToRole  String?
+  isInitial         Boolean  @default(false)
+  isFinal           Boolean  @default(false)
+  order             Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  workflowDef  WorkflowDefinition @relation(fields: [workflowDefId], references: [id], onDelete: Cascade)
+  fromTransitions WorkflowTransition[] @relation("FromStep")
+  toTransitions   WorkflowTransition[] @relation("ToStep")
+
+  @@unique([workflowDefId, stepKey])
+  @@map("workflow_steps")
+}
+
+model WorkflowTransition {
+  id            String   @id @default(cuid())
+  workflowDefId String
+  fromStepId    String
+  toStepId      String
+  action        String
+  allowedRoles  String?  // JSON array
+  requiresComment Boolean @default(false)
+  autoActions   String?  // JSON
+  createdAt     DateTime @default(now())
+
+  workflowDef WorkflowDefinition @relation(fields: [workflowDefId], references: [id], onDelete: Cascade)
+  fromStep    WorkflowStep       @relation("FromStep", fields: [fromStepId], references: [id], onDelete: Cascade)
+  toStep      WorkflowStep       @relation("ToStep", fields: [toStepId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_transitions")
+}
+
+model WorkflowInstance {
+  id              String   @id @default(cuid())
+  workflowDefId   String
+  entityId        String
+  entityType      String
+  currentStepId   String?
+  status          String   @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workflowDef WorkflowDefinition @relation(fields: [workflowDefId], references: [id])
+  events      WorkflowEvent[]
+
+  @@map("workflow_instances")
+}
+
+model WorkflowEvent {
+  id                String   @id @default(cuid())
+  instanceId        String
+  fromStep          String?
+  toStep            String
+  action            String
+  comment           String?
+  performedById     String?
+  aiRecommendation  String?  // JSON
+  createdAt         DateTime @default(now())
+
+  instance WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_events")
+}
+
+// ============================================================
+// Work Items / MIT (Managed Item Tracking)
+// ============================================================
+
+model WorkItem {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  requestId   String?
+  projectId   String?
+  status      String   @default("CREATED") // CREATED, ASSIGNED, ACCEPTED, IN_PROGRESS, SUBMITTED, DEPLOYED, RETURNED, REJECTED
+  currentStep String?  // BA, DEV, QA, UAT, MA
+  priority    String   @default("MEDIUM")
+  aitNo       String?  // AIT MIT Document Number
+  dueDate          DateTime?
+  estimatedManDays Float?    @default(0)
+  spentManDays     Float?    @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  request     Request?           @relation(fields: [requestId], references: [id])
+  assignments WorkItemAssignment[]
+  handoffs    WorkItemHandoff[]
+  statusHistory WorkItemStatusHistory[]
+  mitStepAssignments MitStepAssignment[]
+
+  @@map("work_items")
+}
+
+model WorkItemAssignment {
+  id        String   @id @default(cuid())
+  workItemId String
+  userId    String
+  role      String   // BA, DEVELOPER, QA, FULLSTACK
+  isActive  Boolean  @default(true)
+  assignedAt DateTime @default(now())
+  acceptedAt DateTime?
+
+  workItem WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@map("work_item_assignments")
+}
+
+model WorkItemHandoff {
+  id           String   @id @default(cuid())
+  workItemId   String
+  fromUserId   String?
+  toUserId     String?
+  fromRole     String?
+  toRole       String?
+  handoffNote  String?
+  aiGeneratedNote String?
+  status       String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt    DateTime @default(now())
+
+  workItem WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@map("work_item_handoffs")
+}
+
+model WorkItemStatusHistory {
+  id          String   @id @default(cuid())
+  workItemId  String
+  fromStatus  String?
+  toStatus    String
+  comment     String?
+  changedById String?
+  createdAt   DateTime @default(now())
+
+  workItem WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@map("work_item_status_history")
+}
+
+// ============================================================
+// MIT Step Assignment (Role-based eligibility tracking)
+// ============================================================
+
+model MitStepAssignment {
+  id          String   @id @default(cuid())
+  workItemId  String
+  step        String   // BA, DEV, QA, UAT, MA
+  assigneeId  String?
+  status      String   @default("PENDING") // PENDING, ASSIGNED, ACCEPTED, REJECTED, RETURNED, SUBMITTED, DEPLOYED
+  assignedById String?
+  assignedAt  DateTime?
+  acceptedAt  DateTime?
+  submittedAt DateTime?
+  deployedAt  DateTime?
+  rejectedAt  DateTime?
+  returnedAt  DateTime?
+  rejectionReason String?
+  returnReason    String?
+  estimatedManDays Float?   @default(0)
+  spentManDays     Float?   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workItem   WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  assignee   User?    @relation(fields: [assigneeId], references: [id])
+
+  @@map("mit_step_assignments")
+}
+
+// ============================================================
+// UAT
+// ============================================================
+
+model UatCycle {
+  id          String   @id @default(cuid())
+  projectId   String
+  requestId   String?
+  name        String
+  description String?
+  status      String   @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, FAILED
+  aitNo       String?  // AIT UAT Document Number
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   Project       @relation(fields: [projectId], references: [id])
+  testCases UatTestCase[]
+
+  @@map("uat_cycles")
+}
+
+model UatTestCase {
+  id            String   @id @default(cuid())
+  uatCycleId    String
+  title         String
+  precondition  String?
+  steps         String   // JSON array
+  expectedResult String
+  priority      String   @default("MEDIUM")
+  type          String   @default("FUNCTIONAL") // FUNCTIONAL, REGRESSION, NEGATIVE, EDGE_CASE
+  aiGenerated   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  uatCycle    UatCycle        @relation(fields: [uatCycleId], references: [id], onDelete: Cascade)
+  testResults UatTestResult[]
+
+  @@map("uat_test_cases")
+}
+
+model UatTestResult {
+  id          String   @id @default(cuid())
+  testCaseId  String
+  testerId    String
+  status      String   // PASSED, FAILED, BLOCKED, SKIPPED
+  actualResult String?
+  comments    String?
+  testedAt    DateTime @default(now())
+
+  testCase UatTestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  tester   User        @relation(fields: [testerId], references: [id])
+
+  @@map("uat_test_results")
+}
+
+// ============================================================
+// Bug & Change
+// ============================================================
+
+model BugReport {
+  id               String   @id @default(cuid())
+  requestId        String?
+  projectId        String?
+  title            String
+  description      String
+  severity         String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  actualResult     String?
+  expectedResult   String?
+  reproductionSteps String?
+  rootCause        String?
+  fixVersion       String?
+  status           String   @default("OPEN") // OPEN, INVESTIGATING, FIXING, FIXED, VERIFIED, CLOSED
+  aitNo            String?  // AIT BUG Document Number
+  reportedById     String
+  aiRca            String?  // JSON
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  request       Request?  @relation(fields: [requestId], references: [id])
+  reportedBy    User      @relation("BugReporter", fields: [reportedById], references: [id])
+
+  @@map("bug_reports")
+}
+
+model ChangeRequest {
+  id              String   @id @default(cuid())
+  requestId       String?
+  projectId       String?
+  title           String
+  description     String
+  category        String? // ENHANCEMENT, MODIFICATION, REMOVAL, MIGRATION
+  impactLevel     String? @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  isApproved      Boolean @default(false)
+  aitNo           String?  // AIT CHG Document Number
+  status          String   @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, IMPLEMENTING, COMPLETED
+  impactAnalysis  String? // JSON
+  aiImpactAnalysis String? // JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  request Request? @relation(fields: [requestId], references: [id])
+
+  @@map("change_requests")
+}
+
+// ============================================================
+// Maintenance
+// ============================================================
+
+model MaintenanceAgreement {
+  id          String   @id @default(cuid())
+  projectId   String
+  type        String   // STANDARD, PREMIUM, CUSTOM
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, RENEWED, CANCELLED
+  aitNo       String?  // AIT MA Document Number
+  slaDetails  String?  // JSON
+  coverage    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project      Project                @relation(fields: [projectId], references: [id])
+  supportCases MaintenanceSupportCase[]
+
+  @@map("maintenance_agreements")
+}
+
+model MaintenanceSupportCase {
+  id                   String   @id @default(cuid())
+  maintenanceAgId      String
+  title                String
+  description          String
+  priority             String   @default("MEDIUM")
+  status               String   @default("OPEN")
+  resolvedAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  maintenanceAg MaintenanceAgreement @relation(fields: [maintenanceAgId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_support_cases")
+}
+
+// ============================================================
+// Meeting
+// ============================================================
+
+model Meeting {
+  id          String   @id @default(cuid())
+  projectId   String?
+  requestId   String?
+  title       String
+  description String?
+  meetingUrl  String?
+  scheduledAt DateTime?
+  endedAt     DateTime?
+  status      String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  botStatus   String?  // IDLE, JOINING, ACTIVE, LEAVING, ERROR
+  botAccountId String?
+  recordingStatus String? // NONE, RECORDING, COMPLETED, FAILED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project      Project?             @relation(fields: [projectId], references: [id])
+  participants MeetingParticipant[]
+  transcripts  MeetingTranscript[]
+  summaries    MeetingSummary[]
+  actionItems  MeetingActionItem[]
+  botSessions  MeetingBotSession[]
+  recordings   MeetingRecording[]
+  calendarEvent GoogleCalendarEvent?
+
+  @@map("meetings")
+}
+
+model MeetingParticipant {
+  id        String @id @default(cuid())
+  meetingId String
+  userId    String?
+  name      String
+  email     String?
+  role      String? // ORGANIZER, ATTENDEE
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@map("meeting_participants")
+}
+
+model MeetingTranscript {
+  id        String   @id @default(cuid())
+  meetingId String
+  content   String
+  format    String   @default("TEXT") // TEXT, SRT, VTT
+  duration  Int?
+  createdAt DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_transcripts")
+}
+
+model MeetingSummary {
+  id              String   @id @default(cuid())
+  meetingId       String
+  summaryMarkdown String
+  decisions       String?  // JSON array
+  requirements    String?  // JSON array
+  scopeIn         String?  // JSON array
+  scopeOut        String?  // JSON array
+  risks           String?  // JSON array
+  openQuestions   String?  // JSON array
+  aiModel         String?
+  promptVersionId String?
+  createdAt       DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_summaries")
+}
+
+model MeetingActionItem {
+  id          String   @id @default(cuid())
+  meetingId   String
+  title       String
+  description String?
+  assigneeId  String?
+  dueDate     DateTime?
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
+  confidence  Float?
+  sourceQuote String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  meeting  Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  assignee User?   @relation(fields: [assigneeId], references: [id])
+
+  @@map("meeting_action_items")
+}
+
+model MeetingBotAccount {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  status      String   @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE, ERROR
+  lastUsedAt  DateTime?
+  googleOAuthTokenId String? @unique // Link to Google OAuth token for this bot
+  createdAt   DateTime @default(now())
+
+  sessions        MeetingBotSession[]
+  googleOAuthToken GoogleOAuthToken? @relation(fields: [googleOAuthTokenId], references: [id])
+
+  @@map("meeting_bot_accounts")
+}
+
+model MeetingBotSession {
+  id          String   @id @default(cuid())
+  meetingId   String
+  botAccountId String
+  status      String   @default("STARTING") // STARTING, JOINED, RECORDING, TRANSCRIBING, SUMMARIZING, EXPORTING, LEAVING, ENDED, ERROR
+  joinedAt    DateTime?
+  leftAt      DateTime?
+  errorLog    String?
+  // Pipeline status tracking
+  recordingStartedAt  DateTime?
+  recordingEndedAt    DateTime?
+  recordingFilePath   String?
+  transcriptionStartedAt DateTime?
+  transcriptionEndedAt   DateTime?
+  transcriptText       String?
+  summaryStartedAt    DateTime?
+  summaryEndedAt      DateTime?
+  exportFormat        String?  // MARKDOWN, GOOGLE_DOCS, BOTH
+  exportStatus        String?  // PENDING, COMPLETED, FAILED
+  exportFilePath      String?
+  exportDocsUrl       String?
+  createdAt   DateTime @default(now())
+
+  meeting     Meeting          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  botAccount  MeetingBotAccount @relation(fields: [botAccountId], references: [id])
+
+  @@map("meeting_bot_sessions")
+}
+
+// ============================================================
+// AI Prompt Management
+// ============================================================
+
+model AiPrompt {
+  id          String   @id @default(cuid())
+  promptKey   String   @unique
+  title       String
+  description String?
+  category    String   // MEETING, INTAKE, WORKFLOW, UAT, BUG, CHANGE, HANDOFF, DASHBOARD, NOTIFICATION
+  provider    String   @default("default")
+  model       String   @default("default")
+  status      String   @default("DRAFT") // DRAFT, ACTIVE, DEPRECATED
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions    AiPromptVersion[]
+  testCases   AiPromptTestCase[]
+  runs        AiPromptRun[]
+
+  @@map("ai_prompts")
+}
+
+model AiPromptVersion {
+  id                String   @id @default(cuid())
+  promptId          String
+  version           Int
+  systemPrompt      String
+  userPromptTemplate String
+  inputSchema       String?  // JSON Schema
+  outputSchema      String?  // JSON Schema
+  temperature       Float    @default(0.7)
+  maxTokens         Int      @default(4096)
+  changeLog         String?
+  status            String   @default("DRAFT") // DRAFT, ACTIVE, DEPRECATED
+  activatedAt       DateTime?
+  activatedById     String?
+  createdAt         DateTime @default(now())
+
+  prompt    AiPrompt     @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  runs      AiPromptRun[]
+
+  @@unique([promptId, version])
+  @@map("ai_prompt_versions")
+}
+
+model AiPromptTestCase {
+  id          String   @id @default(cuid())
+  promptId    String
+  name        String
+  inputVars   String   // JSON
+  expectedOutput String?
+  expectedContains String? // JSON array of strings that should be in output
+  description String?
+  createdAt   DateTime @default(now())
+
+  prompt AiPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@map("ai_prompt_test_cases")
+}
+
+model AiPromptRun {
+  id               String   @id @default(cuid())
+  promptId         String
+  promptVersionId  String
+  inputVars        String?  // JSON
+  rawOutput        String?
+  parsedOutput     String?  // JSON
+  isValid          Boolean?
+  validationErrors String?
+  isTestRun        Boolean  @default(false)
+  testPassed       Boolean?
+  tokenUsage       String?  // JSON { input, output, total }
+  latencyMs        Int?
+  costEstimate     Float?
+  error            String?
+  runById          String?
+  createdAt        DateTime @default(now())
+
+  prompt        AiPrompt       @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  promptVersion AiPromptVersion @relation(fields: [promptVersionId], references: [id])
+  runBy         User?          @relation(fields: [runById], references: [id])
+
+  @@map("ai_prompt_runs")
+}
+
+model AiProviderConfig {
+  id          String   @id @default(cuid())
+  provider    String   @unique
+  name        String
+  apiKeyEnc   String?  // Encrypted API key
+  baseUrl     String?
+  models      String?  // JSON array of model IDs
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("ai_provider_configs")
+}
+
+model AiGeneratedArtifact {
+  id          String   @id @default(cuid())
+  type        String   // SUMMARY, DRAFT, TEST_CASE, RCA, HANDOFF_NOTE, INSIGHT, ACTION_ITEMS
+  sourceId    String?
+  sourceType  String?
+  content     String
+  promptRunId String?
+  createdAt   DateTime @default(now())
+
+  @@map("ai_generated_artifacts")
+}
+
+// ============================================================
+// Notifications (Enhanced)
+// ============================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   // INFO, WARNING, ERROR, ACTION_REQUIRED
+  eventKey  String?  // e.g. REQUEST_SUBMITTED, MIT_ASSIGNED
+  entityType String? // REQUEST, PROJECT, MIT, etc.
+  entityId  String?
+  aitNo     String?
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries   NotificationDelivery[]
+
+  @@map("notifications")
+}
+
+model NotificationRule {
+  id                String   @id @default(cuid())
+  eventKey          String   @unique
+  name              String
+  description       String?
+  channels          String   @default("[\"IN_APP\",\"EMAIL\"]") // JSON array: IN_APP, EMAIL
+  recipientStrategy String   @default("ASSIGNEE") // ASSIGNEE, ASSIGNED_ROLE, SPECIFIC_USERS, ALL_ADMINS, CREATOR
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("notification_rules")
+}
+
+model NotificationPreference {
+  id            String   @id @default(cuid())
+  userId        String
+  eventKey      String
+  inAppEnabled  Boolean  @default(true)
+  emailEnabled  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventKey])
+  @@map("notification_preferences")
+}
+
+model NotificationDelivery {
+  id             String   @id @default(cuid())
+  notificationId String
+  channel        String   // IN_APP, EMAIL
+  status         String   @default("PENDING") // PENDING, SENT, FAILED
+  deliveredAt    DateTime?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@map("notification_deliveries")
+}
+
+// ============================================================
+// AIT Document Number Management
+// ============================================================
+
+model DocumentNumberSequence {
+  id             String   @id @default(cuid())
+  documentType   String   @unique // REQUEST, PROJECT, MIT, UAT, BUG, CHANGE, APPROVAL, MA
+  prefix         String   // AIT-REQ, AIT-PRJ, etc.
+  year           Int      @default(2026)
+  currentNumber  Int      @default(0)
+  paddingLength  Int      @default(6)
+  formatTemplate String   @default("AIT-{PREFIX}-{YEAR}-{NUMBER}") 
+  resetPolicy    String   @default("YEARLY") // YEARLY, MONTHLY, NEVER
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("document_number_sequences")
+}
+
+model DocumentNumber {
+  id            String   @id @default(cuid())
+  documentNo    String   @unique // e.g. AIT-REQ-2026-000001
+  documentType  String   // REQUEST, PROJECT, MIT, UAT, BUG, CHANGE, APPROVAL, MA
+  entityType    String?  // The entity type this number is assigned to
+  entityId      String?  // The entity ID this number is assigned to
+  status        String   @default("ACTIVE") // ACTIVE, VOID, RESERVED
+  generatedById String?
+  generatedAt   DateTime @default(now())
+  voidedById    String?
+  voidedAt      DateTime?
+  voidReason    String?
+  metadata      String?  // JSON
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  generator User? @relation("DocumentNumberGenerator", fields: [generatedById], references: [id])
+  voidedBy  User? @relation("DocumentNumberVoider", fields: [voidedById], references: [id])
+
+  @@map("document_numbers")
+}
+
+// ============================================================
+// Approval Workflow (Configurable multi-step)
+// ============================================================
+
+model ApprovalWorkflow {
+  id          String   @id @default(cuid())
+  workflowKey String   @unique
+  entityType  String   // REQUEST, PROJECT, CHANGE, UAT_SIGNOFF
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps      ApprovalStep[]
+  instances  ApprovalInstance[]
+
+  @@map("approval_workflows")
+}
+
+model ApprovalStep {
+  id              String   @id @default(cuid())
+  workflowId      String
+  stepOrder       Int
+  stepName        String
+  approverRole    String?  // Role key(s) that can approve at this step
+  approverUserId  String?  // Specific user override
+  requiredAction  String   @default("APPROVE") // APPROVE, REVIEW, SIGNOFF
+  isRequired      Boolean  @default(true)
+  slaHours        Int?
+  createdAt       DateTime @default(now())
+
+  workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  actions  ApprovalAction[]
+
+  @@map("approval_steps")
+}
+
+model ApprovalInstance {
+  id            String   @id @default(cuid())
+  aitNo         String?  // AIT APR Document Number
+  workflowId    String
+  entityType    String
+  entityId      String
+  currentStepId String?
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  requestedById String?
+  requestedAt   DateTime @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id])
+  actions  ApprovalAction[]
+
+  @@map("approval_instances")
+}
+
+model ApprovalAction {
+  id          String   @id @default(cuid())
+  instanceId  String
+  stepId      String
+  actorUserId String
+  action      String   // APPROVE, REJECT, COMMENT, DELEGATE
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  instance ApprovalInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  step     ApprovalStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  actor    User             @relation(fields: [actorUserId], references: [id])
+
+  @@map("approval_actions")
+}
+
+model ApprovalDelegation {
+  id            String   @id @default(cuid())
+  fromUserId    String
+  toUserId      String
+  entityType    String? // If null, delegates all types
+  startDate     DateTime
+  endDate       DateTime?
+  reason        String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@map("approval_delegations")
+}
+
+// ============================================================
+// GitHub Integration
+// ============================================================
+
+model GithubConnection {
+  id              String   @id @default(cuid())
+  connectionName  String
+  authType        String   @default("TOKEN") // TOKEN, GITHUB_APP
+  tokenEncrypted  String?  // Encrypted token or secret ref
+  owner           String
+  isActive        Boolean  @default(true)
+  lastSyncAt      DateTime?
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  creator     User               @relation(fields: [createdById], references: [id])
+  repositories GithubRepository[]
+
+  @@map("github_connections")
+}
+
+model GithubRepository {
+  id             String   @id @default(cuid())
+  connectionId   String
+  owner          String
+  repo           String
+  fullName       String   // owner/repo
+  defaultBranch  String   @default("main")
+  visibility     String   @default("private") // public, private, internal
+  lastCommitSha  String?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  connection     GithubConnection     @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  projectRepos   ProjectGithubRepository[]
+  commits        GithubCommit[]
+
+  @@map("github_repositories")
+}
+
+model ProjectGithubRepository {
+  id           String   @id @default(cuid())
+  projectId    String
+  repositoryId String
+  branch       String   @default("main")
+  pathFilter   String?  // Optional path filter for monorepos
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repository GithubRepository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, repositoryId])
+  @@map("project_github_repositories")
+}
+
+model GithubCommit {
+  id             String   @id @default(cuid())
+  repositoryId   String
+  projectId      String?
+  sha            String
+  message        String
+  authorName     String
+  authorEmail    String?
+  authorDate     DateTime
+  committerName  String?
+  committerDate  DateTime?
+  branch         String?
+  additions      Int?
+  deletions      Int?
+  changedFiles   Int?
+  url            String?
+  rawPayload     String?  // JSON
+  createdAt      DateTime @default(now())
+
+  repository GithubRepository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@map("github_commits")
+}
+
+model GithubCommitDailySummary {
+  id                 String   @id @default(cuid())
+  projectId          String
+  repositoryId       String?
+  summaryDate        DateTime
+  totalCommits       Int      @default(0)
+  authorsJson        String?  // JSON array of authors
+  changedFilesCount  Int      @default(0)
+  aiSummaryMarkdown  String?
+  riskNotesJson      String?  // JSON array
+  generatedBy        String   @default("RULE") // RULE, AI
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([projectId, repositoryId, summaryDate])
+  @@map("github_commit_daily_summaries")
+}
+
+model GithubSyncLog {
+  id            String   @id @default(cuid())
+  connectionId  String
+  repositoryId  String?
+  projectId     String?
+  status        String   // SUCCESS, FAILED, PARTIAL
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  message       String?
+  errorMessage  String?
+  metadata      String?  // JSON
+
+  @@map("github_sync_logs")
+}
+
+// ============================================================
+// SMTP / Email
+// ============================================================
+
+model SmtpSetting {
+  id               String   @id @default(cuid())
+  name             String
+  host             String
+  port             Int      @default(587)
+  secure           Boolean  @default(false)
+  username         String
+  passwordEncrypted String? // Encrypted or secretRef
+  fromEmail        String
+  fromName         String?
+  isDefault        Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  lastTestAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("smtp_settings")
+}
+
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  templateKey     String   @unique
+  name            String
+  subjectTemplate String
+  bodyHtmlTemplate String
+  bodyTextTemplate String?
+  variablesJson   String?  // JSON array of variable names
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model EmailDeliveryLog {
+  id                String   @id @default(cuid())
+  toEmail           String
+  ccJson            String?  // JSON array
+  bccJson           String?  // JSON array
+  subject           String
+  templateKey       String?
+  status            String   @default("QUEUED") // QUEUED, SENT, FAILED
+  providerMessageId String?
+  errorMessage      String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  aitNo             String?
+  createdAt         DateTime @default(now())
+  sentAt            DateTime?
+
+  @@map("email_delivery_logs")
+}
+
+// ============================================================
+// System Settings
+// ============================================================
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   // JSON value
+  valueType   String   @default("STRING") // STRING, NUMBER, BOOLEAN, JSON
+  category    String   // GENERAL, AUTH, SMTP, GITHUB, AI, NOTIFICATION, WORKFLOW, SECURITY, APPEARANCE, DOCUMENT_NUMBER
+  description String?
+  isSecret    Boolean  @default(false)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// ============================================================
+// Background Jobs / Scheduler
+// ============================================================
+
+model BackgroundJob {
+  id           String   @id @default(cuid())
+  jobKey       String   @unique
+  name         String
+  description  String?
+  schedule     String?  // Cron expression or interval
+  isEnabled    Boolean  @default(true)
+  lastRunAt    DateTime?
+  lastStatus   String?  // SUCCESS, FAILED, RUNNING
+  nextRunAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  runs BackgroundJobRun[]
+
+  @@map("background_jobs")
+}
+
+model BackgroundJobRun {
+  id           String   @id @default(cuid())
+  jobKey       String
+  status       String   // RUNNING, SUCCESS, FAILED
+  startedAt    DateTime @default(now())
+  finishedAt   DateTime?
+  result       String?  // JSON result summary
+  errorMessage String?
+  durationMs   Int?
+
+  job BackgroundJob @relation(fields: [jobKey], references: [jobKey])
+
+  @@map("background_job_runs")
+}
+
+// ============================================================
+// Google OAuth & Calendar Integration
+// ============================================================
+
+model GoogleOAuthToken {
+  id              String   @id @default(cuid())
+  userId          String
+  purpose         String   @default("PERSONAL") // PERSONAL, BOT — whether this is a user's personal Google account or a bot account
+  googleEmail     String
+  accessToken     String   // Encrypted
+  refreshToken    String?  // Encrypted
+  tokenExpiry     DateTime?
+  scope           String?  // OAuth scopes granted
+  isActive        Boolean  @default(true)
+  lastRefreshedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  botAccount    MeetingBotAccount?
+  calendarEvents GoogleCalendarEvent[]
+
+  @@unique([userId, googleEmail])
+  @@map("google_oauth_tokens")
+}
+
+model GoogleCalendarEvent {
+  id              String   @id @default(cuid())
+  googleEventId   String   @unique // Google Calendar event ID
+  userId          String
+  oauthTokenId    String
+  projectId       String?
+  meetingId       String?  @unique // Linked meeting if matched
+  title           String
+  description     String?
+  meetingUrl      String?  // Google Meet URL
+  location        String?
+  organizerEmail  String?
+  startAt         DateTime
+  endAt           DateTime
+  status          String   @default("CONFIRMED") // CONFIRMED, TENTATIVE, CANCELLED
+  attendees       String?  // JSON array of {email, name, responseStatus}
+  isRecurring     Boolean  @default(false)
+  recurrenceRule  String?
+  syncedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oauthToken  GoogleOAuthToken @relation(fields: [oauthTokenId], references: [id], onDelete: Cascade)
+  project     Project?         @relation(fields: [projectId], references: [id])
+  meeting     Meeting?         @relation(fields: [meetingId], references: [id])
+
+  @@map("google_calendar_events")
+}
+
+// ============================================================
+// Meeting Recording (Audio file tracking)
+// ============================================================
+
+model MeetingRecording {
+  id              String   @id @default(cuid())
+  meetingId       String
+  botSessionId    String?
+  filePath        String   // Path to saved audio file
+  fileName        String
+  fileSizeBytes   Int?
+  durationSeconds Int?
+  format          String   @default("wav") // wav, mp3, webm
+  sampleRate      Int?
+  channels        Int      @default(1)
+  status          String   @default("RECORDING") // RECORDING, COMPLETED, FAILED, DELETED
+  startedAt       DateTime?
+  endedAt         DateTime?
+  transcriptionStatus String? @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  transcriptionText   String? // Raw transcript text (also saved to MeetingTranscript)
+  transcriptionId     String? // Link to MeetingTranscript record
+  summaryStatus       String? @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  summaryId           String? // Link to MeetingSummary record
+  exportStatus        String? @default("PENDING") // PENDING, COMPLETED, FAILED
+  exportFormat        String? // MARKDOWN, GOOGLE_DOCS, BOTH
+  exportFilePath      String?
+  exportDocsUrl       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  meeting     Meeting          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_recordings")
+}
+
+// ============================================================
+// Activity Daily & AI Usage KPI
+// ============================================================
+
+model ActivityDaily {
+  id                  String   @id @default(cuid())
+  userId              String
+  date                DateTime // The work date
+  totalWorkHours      Float    @default(8) // Total work hours in the day (e.g., 8)
+  aiUsageHours        Float    @default(0) // Hours using AI tools
+  aiUsagePercentage   Float    @default(0) // Calculated: aiUsageHours / totalWorkHours * 100
+  kpiTargetPercentage Float    @default(25) // AI usage KPI target % (25% = 2hr AI out of 8hr)
+  kpiMet              Boolean  @default(false) // Whether AI usage KPI target was met
+  summary             String?  // Text summary of the day's work
+  commitSummary       String?  // Auto-generated from git commits
+  commitCount         Int      @default(0) // Number of commits that day
+  projectEntries      String?  // JSON array of {projectId, projectName, hours, aiHours, tasks, commitCount, commitMessages[]}
+  status              String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED
+  approvedById        String?
+  approvedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy  User?  @relation("ActivityDailyApprover", fields: [approvedById], references: [id])
+
+  @@unique([userId, date])
+  @@map("activity_dailies")
+}
+
+// ============================================================
+// Menu Management (Database-driven navigation)
+// ============================================================
+
+model Menu {
+  id                 String   @id @default(cuid())
+  key                String   @unique // e.g. 'dashboard', 'projects', 'admin-users'
+  label              String   // Display name (English)
+  labelTh            String?  // Display name (Thai)
+  icon               String   // Lucide icon name, e.g. 'LayoutDashboard', 'FolderKanban'
+  view               String   // The view key to navigate to
+  parentId           String?  // Self-relation for lv2 menus under lv1
+  level              Int      @default(1) // 1 = top level, 2 = child
+  sortOrder          Int      @default(0) // For drag-and-drop ordering
+  isVisible          Boolean  @default(true) // Toggle visibility
+  isExpanded         Boolean  @default(false) // Whether lv1 starts expanded showing lv2 children
+  requiredPermission String?  // Permission key required to see this menu
+  badge              String?  // Optional badge text like count
+  badgeVariant       String?  @default("default") // Badge variant: default, destructive, outline, secondary
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  parent   Menu?  @relation("MenuTree", fields: [parentId], references: [id])
+  children Menu[] @relation("MenuTree")
+  menuPermissions MenuPermission[]
+
+  @@map("menus")
+}
+
+model MenuPermission {
+  id     String @id @default(cuid())
+  menuId String
+  roleId String
+
+  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([menuId, roleId])
+  @@map("menu_permissions")
+}
+
+// ============================================================
+// Platform Request (User requests to create Program/Platform)
+// ============================================================
+
+model PlatformRequest {
+  id                String   @id @default(cuid())
+  requestNo         String   @unique // Generated run number, e.g. AIT-PLT-2605-001
+  name              String   // Platform/Program name
+  description       String   // Detailed description
+  objective         String?  // Business objective / purpose
+  targetUsers       String?  // Who will use this platform
+  expectedTimeline  String?  // Expected completion timeline, e.g. "Q3 2026"
+  priority          String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status            String   @default("PENDING") // PENDING, DIVISION_APPROVED, APPROVED, REJECTED, CANCELLED, LINKED
+  requesterId       String   // User who requested
+  departmentId      String?  // Department of requester (denormalized for quick access)
+  divisionHeadId    String?  // Auto-resolved: head of requester's division
+  sdManagerId       String?  // SD manager who does final approval
+  projectId         String?  @unique // Linked project after approval
+  rejectionReason   String?  // Reason if rejected
+  approvedAt        DateTime? // Final approval timestamp
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  requester    User                     @relation("PlatformRequestRequester", fields: [requesterId], references: [id])
+  department   Department?              @relation(fields: [departmentId], references: [id])
+  divisionHead User?                    @relation("PlatformRequestDivisionHead", fields: [divisionHeadId], references: [id])
+  sdManager    User?                    @relation("PlatformRequestSDManager", fields: [sdManagerId], references: [id])
+  project      Project?                 @relation(fields: [projectId], references: [id])
+  approvals    PlatformRequestApproval[]
+
+  @@map("platform_requests")
+}
+
+model PlatformRequestApproval {
+  id                String   @id @default(cuid())
+  platformRequestId String
+  step              String   // DIVISION_HEAD, SD_MANAGER
+  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  approverId        String
+  comment           String?
+  actedAt           DateTime?
+  createdAt         DateTime @default(now())
+
+  platformRequest PlatformRequest @relation(fields: [platformRequestId], references: [id], onDelete: Cascade)
+  approver        User            @relation(fields: [approverId], references: [id])
+
+  @@unique([platformRequestId, step])
+  @@map("platform_request_approvals")
+}
+
+// ============================================================
+// Memory Vault (Obsidian-style Knowledge Base)
+// ============================================================
+
+model VaultNode {
+  id          String   @id @default(cuid())
+  projectId   String
+  parentId    String?  // null = root level
+  name        String   // File/folder name (e.g. "01-Requirements.md", "Architecture")
+  type        String   @default("NOTE") // NOTE, FOLDER, SOLUTION, INDEX, DAILY_NOTE, TEMPLATE, CANVAS
+  content     String?  // Markdown content (null for folders)
+  frontmatter String?  // JSON: YAML frontmatter as key-value pairs
+  tags        String?  // JSON array: ["requirement", "architecture"]
+  sortOrder   Int      @default(0)
+  isPinned    Boolean  @default(false)
+  isExpanded  Boolean  @default(false) // for folders: default expanded state
+  icon        String?  // Obsidian icon name or emoji
+  color       String?  // Node color for graph view
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    VaultNode?  @relation("VaultTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  VaultNode[] @relation("VaultTree")
+  outgoing  VaultLink[] @relation("OutgoingLinks")
+  incoming  VaultLink[] @relation("IncomingLinks")
+  creator      User?            @relation("VaultNodeCreator", fields: [createdById], references: [id])
+  attachments VaultAttachment[]
+
+  @@map("vault_nodes")
+}
+
+model VaultLink {
+  id         String   @id @default(cuid())
+  sourceId   String
+  targetId   String
+  label      String?  // Optional link label/context
+  linkType   String   @default("REFERENCE") // REFERENCE, DEPENDS_ON, RELATED, DERIVED_FROM, IMPLEMENTS
+  createdAt  DateTime @default(now())
+
+  source VaultNode @relation("OutgoingLinks", fields: [sourceId], references: [id], onDelete: Cascade)
+  target VaultNode @relation("IncomingLinks", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId, linkType])
+  @@map("vault_links")
+}
+
+// ============================================================
+// Vault Attachments (File Upload)
+// ============================================================
+
+model VaultAttachment {
+  id          String   @id @default(cuid())
+  nodeId      String?  // null = project-level attachment, not linked to specific node
+  projectId   String   // direct link to project for project-level attachments
+  fileName    String
+  originalName String
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  storageType String   @default("LOCAL") // LOCAL, API
+  uploadedById String?
+  createdAt   DateTime @default(now())
+
+  node     VaultNode? @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  project  Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader User?      @relation(fields: [uploadedById], references: [id])
+
+  @@map("vault_attachments")
+}
