@@ -360,6 +360,7 @@ async function seed() {
     { email: 'approver@enterprise.com', name: 'Approver User', roleKey: 'APPROVER', deptId: pmDept.id },
     { email: 'ba@enterprise.com', name: 'BA User', roleKey: 'BA', deptId: baDept.id },
     { email: 'developer@enterprise.com', name: 'Developer User', roleKey: 'DEVELOPER', deptId: itDept.id },
+    { email: 'piakdev@enterprise.com', name: 'Piakdev', roleKey: 'DEVELOPER', deptId: itDept.id },
     { email: 'dev2@enterprise.com', name: 'Developer Two', roleKey: 'DEVELOPER', deptId: itDept.id },
     { email: 'fullstack@enterprise.com', name: 'Fullstack User', roleKey: 'FULLSTACK', deptId: itDept.id },
     { email: 'qa@enterprise.com', name: 'QA User', roleKey: 'QA', deptId: qaDept.id },

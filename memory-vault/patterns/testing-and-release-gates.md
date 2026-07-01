@@ -1,3 +1,8 @@
+---
+tags: [pattern, testing, release]
+related: "[[ai-delivery-pipeline]]"
+---
+
 # Pattern: Testing and Release Gates
 
 ## Minimum validation by change type

@@ -1,3 +1,8 @@
+---
+tags: [pattern, workflow]
+related: "[[ADR-0000-ai-delivery-workflow]]"
+---
+
 # Pattern: AI Delivery Pipeline
 
 ## Intent

@@ -1,3 +1,9 @@
+---
+tags: [decision, workflow]
+status: Accepted
+related: "[[ai-delivery-pipeline]]"
+---
+
 # ADR-0000: BICCORP AI Delivery Workflow
 
 ## Status

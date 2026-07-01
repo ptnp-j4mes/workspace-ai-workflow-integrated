@@ -1,3 +1,7 @@
+---
+tags: [moc]
+---
+
 # Memory Vault
 
 The Memory Vault stores durable project knowledge that should survive beyond a single chat, branch, or PR.
@@ -38,3 +42,16 @@ Update the Memory Vault when a change introduces or changes:
 - A Prisma model or migration convention.
 - A reusable UI/theme pattern.
 - A release or rollback lesson.
+
+## Notes
+
+### Decisions
+- [[ADR-0000-ai-delivery-workflow]]
+- [[ADR-0000-biccorp-ai-delivery-workflow]]
+- [[ADR-0001-elysia-backend-split]]
+
+### Patterns
+- [[ai-delivery-pipeline]]
+- [[codex-control]]
+- [[testing-and-release-gates]]
+- [[nextjs-to-elysia-route-porting]]

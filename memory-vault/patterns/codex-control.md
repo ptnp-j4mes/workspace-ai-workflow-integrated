@@ -1,3 +1,8 @@
+---
+tags: [pattern, workflow]
+related: "[[ai-delivery-pipeline]]"
+---
+
 # Pattern: Codex Control
 
 Use this pattern to keep AI implementation small, testable, and auditable.
