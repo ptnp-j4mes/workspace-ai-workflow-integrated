@@ -6,6 +6,8 @@ const root = process.cwd()
 const removePaths = [
   '.next',
   'node_modules',
+  'dev.db',
+  'prisma/dev.db',
   '__MACOSX',
   '.DS_Store',
   'dev.log',

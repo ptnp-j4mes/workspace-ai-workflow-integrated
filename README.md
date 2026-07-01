@@ -2,6 +2,23 @@
 
 Enterprise AI workflow workspace built with Next.js App Router, React, Tailwind CSS, shadcn-style UI primitives, Prisma, and AI-assisted delivery tooling.
 
+## Run with Docker
+
+The recommended setup now uses PostgreSQL in Docker and runs the web app in a container:
+
+```bash
+docker compose up --build
+```
+
+Then open `http://localhost:3004`.
+
+The web container seeds the database on startup, so the default admin account is ready immediately:
+
+- `admin@enterprise.com`
+- `admin123`
+
+If you want to run without Docker, make sure `DATABASE_URL` points to a PostgreSQL instance first.
+
 ## Run locally
 
 Install dependencies with the package manager used by your environment, then run:
@@ -10,7 +27,7 @@ Install dependencies with the package manager used by your environment, then run
 npm run dev
 ```
 
-The default dev script starts Next.js on port `3000`.
+The default dev script starts Next.js on port `3002` and binds to `0.0.0.0` for container compatibility.
 
 ## Validate
 
@@ -104,4 +121,3 @@ npm run biccorp:validate
 ```
 
 For UI/web changes, attach accessibility, responsive behavior, and performance/Core Web Vitals review evidence to the PR.
-

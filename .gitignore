@@ -11,18 +11,19 @@ node_modules
 !.yarn/versions
 
 # testing
-/coverage
+coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build
 
 # misc
 .DS_Store
 *.pem
+*.db
 
 # debug
 npm-debug.log*

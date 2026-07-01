@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: workspace_ai_workflow
+      POSTGRES_USER: workflow
+      POSTGRES_PASSWORD: workflow
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workflow -d workspace_ai_workflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://workflow:workflow@db:5432/workspace_ai_workflow?schema=public
+      NODE_ENV: development
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:3004
+      API_PUBLIC_URL: http://localhost:3001
+      FRONTEND_URL: http://localhost:3004
+    ports:
+      - "3001:3001"
+    command: sh -lc "bunx prisma db push && bun run prisma/seed.ts && bun run start"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_APP_URL: http://localhost:3004
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NODE_ENV: development
+      PORT: 3002
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "3004:3002"
+    command: sh -lc "bun run dev"
+
+volumes:
+  postgres_data:
