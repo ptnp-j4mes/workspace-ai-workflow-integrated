@@ -1,16 +1,44 @@
 # AIT Platform Workspace
 
-Enterprise AI workflow workspace built with Next.js App Router, React, Tailwind CSS, shadcn-style UI primitives, Prisma, and AI-assisted delivery tooling.
+Enterprise AI workflow workspace: a bun-workspaces monorepo with `apps/web` (Next.js App Router, React, Tailwind CSS, shadcn-style UI primitives) and `apps/api` (Elysia/Bun backend, Prisma), plus AI-assisted delivery tooling.
 
-## Run locally
+## Run with Docker
 
-Install dependencies with the package manager used by your environment, then run:
+The recommended setup runs Postgres, the API, and the web app as three containers:
 
 ```bash
-npm run dev
+docker compose up --build
 ```
 
-The default dev script starts Next.js on port `3000`.
+Then open `http://localhost:3004`. The API is reachable directly on `http://localhost:3011`.
+
+The api container seeds the database on startup, so the default admin account is ready immediately:
+
+- `admin@enterprise.com`
+- `admin123`
+
+## Run locally (without Docker)
+
+1. Copy the env templates and fill in `DATABASE_URL` (point it at a running PostgreSQL instance):
+   ```bash
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env
+   ```
+2. Install dependencies (bun workspaces):
+   ```bash
+   bun install
+   ```
+3. Push the schema and seed the database:
+   ```bash
+   bun run --cwd apps/api db:push
+   bun run --cwd apps/api db:seed
+   ```
+4. Start both apps:
+   ```bash
+   npm run dev
+   ```
+
+This starts the Elysia API on `http://localhost:3011` and Next.js on `http://localhost:3002`. Without `apps/web/.env` set, `NEXT_PUBLIC_API_URL` is empty and every frontend API call 404s — the `.env` file in step 1 is required, not optional, for this path.
 
 ## Validate
 
@@ -34,11 +62,13 @@ npm run build
 
 ## Database commands
 
+Run from `apps/api` (or prefix with `bun run --cwd apps/api`):
+
 ```bash
-npm run db:generate
-npm run db:push
-npm run db:migrate
-npm run db:seed
+bun run db:generate
+bun run db:push
+bun run db:migrate
+bun run db:seed
 ```
 
 ## AI delivery workflow
@@ -104,4 +134,3 @@ npm run biccorp:validate
 ```
 
 For UI/web changes, attach accessibility, responsive behavior, and performance/Core Web Vitals review evidence to the PR.
-
