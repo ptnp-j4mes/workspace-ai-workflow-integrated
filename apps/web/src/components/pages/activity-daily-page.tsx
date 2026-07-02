@@ -327,6 +327,7 @@ export default function ActivityDailyPage() {
   const [detailRecord, setDetailRecord] = useState<ActivityDailyRecord | null>(null)
 
   // ── Fetch activity list ──
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- flaky React Compiler bailout: infers `currentUser` as the dep instead of the declared `currentUser?.id`. Optimization-only, not a correctness issue; de-memoizing would break the mount-effect dependency below.
   const fetchRecords = useCallback(async () => {
     try {
       const data = await api.get<{
