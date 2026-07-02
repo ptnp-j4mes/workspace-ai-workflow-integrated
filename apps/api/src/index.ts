@@ -1,9 +1,10 @@
 import { app } from './app'
 
-if (process.env.NODE_ENV === 'production') {
-  for (const key of ['DATABASE_URL', 'JWT_SECRET', 'CORS_ORIGIN', 'API_PUBLIC_URL', 'FRONTEND_URL']) {
+// JWT_SECRET is validated by src/lib/auth.ts (same NODE_ENV=development/test allowlist as below).
+if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+  for (const key of ['DATABASE_URL', 'CORS_ORIGIN', 'API_PUBLIC_URL', 'FRONTEND_URL']) {
     if (!process.env[key]) {
-      throw new Error(`${key} env var is required in production`)
+      throw new Error(`${key} env var is required outside NODE_ENV=development/test`)
     }
   }
 }

@@ -327,7 +327,6 @@ export default function ActivityDailyPage() {
   const [detailRecord, setDetailRecord] = useState<ActivityDailyRecord | null>(null)
 
   // ── Fetch activity list ──
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- React Compiler can't verify this callback's memoization (optimization-only bailout, not a correctness issue); de-memoizing would break the mount-effect dependency below.
   const fetchRecords = useCallback(async () => {
     try {
       const data = await api.get<{

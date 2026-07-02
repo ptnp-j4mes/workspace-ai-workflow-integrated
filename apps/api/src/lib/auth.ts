@@ -4,8 +4,14 @@ import { SignJWT, jwtVerify } from 'jose'
 // JWT & Password Auth Library
 // ============================================================
 
-if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'production') {
-  console.warn('[auth] JWT_SECRET not set — using an insecure default. Set it in apps/api/.env before deploying.')
+const INSECURE_FALLBACK_ENVS = new Set(['development', 'test'])
+
+if (!process.env.JWT_SECRET) {
+  if (INSECURE_FALLBACK_ENVS.has(process.env.NODE_ENV ?? '')) {
+    console.warn('[auth] JWT_SECRET not set — using an insecure default. Set it in apps/api/.env before deploying.')
+  } else {
+    throw new Error('JWT_SECRET env var is required (set NODE_ENV=development or NODE_ENV=test to allow the insecure local default)')
+  }
 }
 
 const JWT_SECRET = new TextEncoder().encode(

@@ -745,6 +745,7 @@ export const meetingsRoutes = new Elysia({ prefix: '/api/meetings' })
 
   // POST /api/meetings/:id/transcribe - Transcribe a meeting recording
   .post('/:id/transcribe', async ({ request, params, set }) => {
+    let transcribeBody: any
     try {
       const user = await getAuthUser(request)
       if (!user) {
@@ -753,8 +754,8 @@ export const meetingsRoutes = new Elysia({ prefix: '/api/meetings' })
       }
 
       const { id: meetingId } = params
-      const body = await request.json()
-      const { recordingId } = body
+      transcribeBody = await request.json()
+      const { recordingId } = transcribeBody ?? {}
 
       if (!recordingId) {
         set.status = 400
@@ -871,7 +872,7 @@ export const meetingsRoutes = new Elysia({ prefix: '/api/meetings' })
 
       // Try to update recording status to FAILED
       try {
-        const { recordingId } = await request.json()
+        const recordingId = transcribeBody?.recordingId
         if (recordingId) {
           await db.meetingRecording.update({
             where: { id: recordingId },
