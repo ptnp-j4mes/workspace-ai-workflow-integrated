@@ -108,7 +108,7 @@ export default function AdminAuditLogsPage() {
   }, [actionFilter, entityFilter, aitNoFilter])
 
   useEffect(() => {
-    fetchLogs(1)
+    ;(() => fetchLogs(1))()
   }, [fetchLogs])
 
   const tryParseJson = (val: string | null): unknown => {

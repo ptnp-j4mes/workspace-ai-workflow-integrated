@@ -174,13 +174,15 @@ export default function MeetingsPage() {
   }, [])
 
   useEffect(() => {
-    fetchMeetings()
-    fetchGoogleAuth()
+    ;(() => {
+      fetchMeetings()
+      fetchGoogleAuth()
+    })()
   }, [fetchMeetings, fetchGoogleAuth])
 
   useEffect(() => {
     if (activeTab === 'calendar') {
-      fetchCalendarEvents()
+      ;(() => fetchCalendarEvents())()
     }
   }, [activeTab, fetchCalendarEvents])
 

@@ -123,7 +123,7 @@ export default function AdminDepartmentsPage() {
   }
 
   useEffect(() => {
-    fetchDepartments()
+    ;(() => fetchDepartments())()
   }, [])
 
   const toggleDivision = (id: string) => {

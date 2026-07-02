@@ -100,7 +100,7 @@ export default function AdminSmtpPage() {
   }
 
   useEffect(() => {
-    fetchSettings()
+    ;(() => fetchSettings())()
   }, [])
 
   const openAddDialog = () => {

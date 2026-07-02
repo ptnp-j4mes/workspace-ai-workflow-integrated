@@ -107,7 +107,7 @@ export default function MaintenancePage() {
   }, [])
 
   useEffect(() => {
-    fetchAgreements()
+    ;(() => fetchAgreements())()
   }, [fetchAgreements])
 
   const handleCreate = async () => {

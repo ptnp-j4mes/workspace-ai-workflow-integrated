@@ -143,7 +143,7 @@ export default function RequestsPage() {
   }, [statusFilter, typeFilter, priorityFilter, search])
 
   useEffect(() => {
-    fetchRequests(1)
+    ;(() => fetchRequests(1))()
   }, [fetchRequests])
 
   const handlePageChange = (newPage: number) => {

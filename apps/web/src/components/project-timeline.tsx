@@ -386,7 +386,7 @@ export default function ProjectTimeline({ projectId }: ProjectTimelineProps) {
   }, [projectId])
 
   useEffect(() => {
-    fetchTimeline()
+    ;(() => fetchTimeline())()
   }, [fetchTimeline])
 
   // Calculate visible date range (3 months centered on currentViewDate)

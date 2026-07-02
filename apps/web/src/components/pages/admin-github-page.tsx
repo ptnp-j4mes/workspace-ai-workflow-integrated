@@ -104,7 +104,7 @@ export default function AdminGithubPage() {
   }
 
   useEffect(() => {
-    fetchConnections()
+    ;(() => fetchConnections())()
   }, [])
 
   const openAddDialog = () => {

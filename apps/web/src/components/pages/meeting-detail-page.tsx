@@ -361,9 +361,11 @@ export default function MeetingDetailPage() {
   }, [meetingId])
 
   useEffect(() => {
-    fetchMeeting()
-    fetchGoogleAuth()
-    fetchRecordings()
+    ;(() => {
+      fetchMeeting()
+      fetchGoogleAuth()
+      fetchRecordings()
+    })()
   }, [fetchMeeting, fetchGoogleAuth, fetchRecordings])
 
   // WebSocket connection for real-time bot status

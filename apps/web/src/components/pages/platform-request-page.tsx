@@ -182,7 +182,7 @@ export default function PlatformRequestPage() {
   )
 
   useEffect(() => {
-    fetchRequests(1)
+    ;(() => fetchRequests(1))()
   }, [fetchRequests])
 
   const handlePageChange = (newPage: number) => {

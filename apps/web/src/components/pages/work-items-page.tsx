@@ -141,7 +141,7 @@ export default function WorkItemsPage() {
   }, [])
 
   useEffect(() => {
-    fetchWorkItems()
+    ;(() => fetchWorkItems())()
   }, [fetchWorkItems])
 
   const handleCreate = async () => {

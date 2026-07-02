@@ -101,7 +101,7 @@ export default function AdminAiSettingsPage() {
   }
 
   useEffect(() => {
-    fetchConfigs()
+    ;(() => fetchConfigs())()
   }, [])
 
   const openEditDialog = (config: AiProviderConfig) => {

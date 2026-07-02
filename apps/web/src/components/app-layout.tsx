@@ -535,7 +535,7 @@ export default function AppLayout() {
 
   // Fetch menus on mount and when menuVersion changes
   useEffect(() => {
-    fetchMenus()
+    ;(() => fetchMenus())()
   }, [menuVersion, fetchMenus])
 
   // (No auto-expand — menus stay collapsed by default, user manually toggles)
@@ -567,13 +567,15 @@ export default function AppLayout() {
 
     const trimmed = searchQuery.trim()
     if (trimmed.length < 3) {
-      setSearchResults([])
-      setSearchOpen(false)
-      setSearchLoading(false)
+      ;(() => {
+        setSearchResults([])
+        setSearchOpen(false)
+        setSearchLoading(false)
+      })()
       return
     }
 
-    setSearchLoading(true)
+    ;(() => setSearchLoading(true))()
 
     searchTimerRef.current = setTimeout(async () => {
       try {

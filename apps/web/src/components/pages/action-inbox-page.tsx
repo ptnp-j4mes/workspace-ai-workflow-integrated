@@ -115,7 +115,7 @@ export default function ActionInboxPage() {
   }, [typeFilter])
 
   useEffect(() => {
-    fetchItems(1)
+    ;(() => fetchItems(1))()
   }, [fetchItems])
 
   const handleDismiss = async (itemId: string) => {

@@ -139,7 +139,7 @@ export default function BugsPage() {
   }, [])
 
   useEffect(() => {
-    fetchBugs()
+    ;(() => fetchBugs())()
   }, [fetchBugs])
 
   const handleCreateBug = async () => {

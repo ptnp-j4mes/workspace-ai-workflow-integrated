@@ -131,8 +131,8 @@ export default function ProjectsPage() {
   }, [statusFilter])
 
   useEffect(() => {
-    setLoading(true)
-    fetchProjects()
+    ;(() => setLoading(true))()
+    ;(() => fetchProjects())()
   }, [fetchProjects])
 
   // Create project

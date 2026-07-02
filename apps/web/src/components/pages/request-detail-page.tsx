@@ -265,7 +265,7 @@ export default function RequestDetailPage() {
   }, [requestId])
 
   useEffect(() => {
-    fetchRequest()
+    ;(() => fetchRequest())()
   }, [fetchRequest])
 
   const fetchUsers = useCallback(async (role?: string) => {

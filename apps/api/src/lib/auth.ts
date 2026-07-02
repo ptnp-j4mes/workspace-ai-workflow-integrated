@@ -4,6 +4,10 @@ import { SignJWT, jwtVerify } from 'jose'
 // JWT & Password Auth Library
 // ============================================================
 
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'production') {
+  console.warn('[auth] JWT_SECRET not set — using an insecure default. Set it in apps/api/.env before deploying.')
+}
+
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'enterprise-ai-workflow-secret-key-2024'
 )

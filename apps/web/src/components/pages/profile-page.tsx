@@ -173,9 +173,11 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    fetchProfile()
-    fetchNotifPrefs()
-    fetchPositions()
+    ;(() => {
+      fetchProfile()
+      fetchNotifPrefs()
+      fetchPositions()
+    })()
   }, [])
 
   const handleAvatarClick = useCallback(() => {

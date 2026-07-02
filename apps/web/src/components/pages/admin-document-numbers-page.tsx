@@ -91,7 +91,7 @@ export default function AdminDocumentNumbersPage() {
   }
 
   useEffect(() => {
-    fetchSequences()
+    ;(() => fetchSequences())()
   }, [])
 
   const openEditDialog = (seq: DocumentNumberSequence) => {

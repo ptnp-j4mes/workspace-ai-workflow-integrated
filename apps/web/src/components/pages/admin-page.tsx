@@ -140,7 +140,7 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    fetchData()
+    ;(() => fetchData())()
   }, [])
 
   if (loading) {

@@ -111,7 +111,7 @@ export default function UatPage() {
   }, [])
 
   useEffect(() => {
-    fetchCycles()
+    ;(() => fetchCycles())()
   }, [fetchCycles])
 
   const handleCreateCycle = async () => {

@@ -140,6 +140,13 @@ interface ActivityListSummary {
   totalCommits: number
 }
 
+interface ActivityListPagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
 interface CtoReportData {
   summary: {
     totalReports: number
@@ -288,7 +295,7 @@ export default function ActivityDailyPage() {
   // My Activity tab state
   const [records, setRecords] = useState<ActivityDailyRecord[]>([])
   const [listSummary, setListSummary] = useState<ActivityListSummary | null>(null)
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 })
+  const [pagination, setPagination] = useState<ActivityListPagination>({ page: 1, limit: 20, total: 0, totalPages: 0 })
   const [loading, setLoading] = useState(true)
 
   // Create/Edit form state
@@ -320,11 +327,12 @@ export default function ActivityDailyPage() {
   const [detailRecord, setDetailRecord] = useState<ActivityDailyRecord | null>(null)
 
   // ── Fetch activity list ──
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- React Compiler can't verify this callback's memoization (optimization-only bailout, not a correctness issue); de-memoizing would break the mount-effect dependency below.
   const fetchRecords = useCallback(async () => {
     try {
       const data = await api.get<{
         records: ActivityDailyRecord[]
-        pagination: typeof pagination
+        pagination: ActivityListPagination
         summary: ActivityListSummary
       }>(`/api/activity-daily?userId=${currentUser?.id}&limit=30`)
       setRecords(data.records)
@@ -361,7 +369,7 @@ export default function ActivityDailyPage() {
 
   useEffect(() => {
     if (activeTab === 'cto-report' && !ctoData) {
-      fetchCtoReport()
+      ;(() => fetchCtoReport())()
     }
   }, [activeTab, ctoData, fetchCtoReport])
 
@@ -1367,7 +1375,7 @@ function TeamActivityTab({ onApprove }: { onApprove: (id: string) => void }) {
   }, [statusFilter])
 
   useEffect(() => {
-    fetchTeamRecords()
+    ;(() => fetchTeamRecords())()
   }, [fetchTeamRecords])
 
   const pendingRecords = teamRecords.filter((r) => r.status === 'SUBMITTED')

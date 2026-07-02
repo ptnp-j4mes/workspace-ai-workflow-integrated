@@ -219,12 +219,12 @@ export default function PromptDetailPage() {
   }, [promptId])
 
   useEffect(() => {
-    fetchPrompt()
+    ;(() => fetchPrompt())()
   }, [fetchPrompt])
 
   useEffect(() => {
     if (activeTab === 'run-logs') {
-      fetchRuns()
+      ;(() => fetchRuns())()
     }
   }, [activeTab, fetchRuns])
 

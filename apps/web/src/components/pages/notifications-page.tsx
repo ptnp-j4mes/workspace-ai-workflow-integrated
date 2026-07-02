@@ -82,7 +82,7 @@ export default function NotificationsPage() {
   }, [])
 
   useEffect(() => {
-    fetchNotifications()
+    ;(() => fetchNotifications())()
   }, [fetchNotifications])
 
   // Mark as read

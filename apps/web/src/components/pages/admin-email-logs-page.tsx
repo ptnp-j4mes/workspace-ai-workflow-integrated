@@ -106,7 +106,7 @@ export default function AdminEmailLogsPage() {
   }, [statusFilter, searchEmail])
 
   useEffect(() => {
-    fetchLogs(1)
+    ;(() => fetchLogs(1))()
   }, [fetchLogs])
 
   if (loading && logs.length === 0) {

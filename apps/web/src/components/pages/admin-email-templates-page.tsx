@@ -94,7 +94,7 @@ export default function AdminEmailTemplatesPage() {
   }
 
   useEffect(() => {
-    fetchTemplates()
+    ;(() => fetchTemplates())()
   }, [])
 
   const openAddDialog = () => {

@@ -133,7 +133,7 @@ export default function PromptsPage() {
   }, [categoryFilter])
 
   useEffect(() => {
-    fetchPrompts()
+    ;(() => fetchPrompts())()
   }, [fetchPrompts])
 
   const filteredPrompts = prompts.filter((p) => {

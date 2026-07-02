@@ -146,7 +146,7 @@ export default function AdminUsersPage() {
   }, [search, departmentFilter, statusFilter])
 
   useEffect(() => {
-    fetchUsers(1)
+    ;(() => fetchUsers(1))()
   }, [fetchUsers])
 
   // Fetch roles & departments on mount

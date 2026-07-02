@@ -181,9 +181,9 @@ export default function GoogleSettingsPage() {
   }, [])
 
   useEffect(() => {
-    fetchGoogleStatus()
-    fetchSmtpSettings()
-    fetchCalendarSyncInfo()
+    ;(() => fetchGoogleStatus())()
+    ;(() => fetchSmtpSettings())()
+    ;(() => fetchCalendarSyncInfo())()
   }, [fetchGoogleStatus, fetchSmtpSettings, fetchCalendarSyncInfo])
 
   // ============================================================

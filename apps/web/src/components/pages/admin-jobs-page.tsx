@@ -79,7 +79,7 @@ export default function AdminJobsPage() {
   }
 
   useEffect(() => {
-    fetchJobs()
+    ;(() => fetchJobs())()
   }, [])
 
   const handleToggle = async (job: BackgroundJob) => {

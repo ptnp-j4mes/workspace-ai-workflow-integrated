@@ -35,7 +35,7 @@ export default function LoginPage() {
         not_configured: 'Google login is not configured. Please contact your administrator.',
         missing_code: 'Authentication code was not received. Please try again.',
       }
-      setError(errorMessages[errParam] || 'An error occurred during login. Please try again.')
+      ;(() => setError(errorMessages[errParam] || 'An error occurred during login. Please try again.'))()
       // Clean up URL
       window.history.replaceState({}, document.title, '/')
     }

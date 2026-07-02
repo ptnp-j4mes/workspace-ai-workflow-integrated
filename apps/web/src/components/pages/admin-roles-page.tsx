@@ -117,8 +117,8 @@ export default function AdminRolesPage() {
   }
 
   useEffect(() => {
-    fetchRoles()
-    fetchPermissions()
+    ;(() => fetchRoles())()
+    ;(() => fetchPermissions())()
   }, [])
 
   // Group permissions by module

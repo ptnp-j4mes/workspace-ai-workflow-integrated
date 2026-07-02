@@ -185,8 +185,8 @@ export default function AdminMenusPage() {
   }, [])
 
   useEffect(() => {
-    fetchMenus()
-    fetchRoles()
+    ;(() => fetchMenus())()
+    ;(() => fetchRoles())()
   }, [fetchMenus, fetchRoles])
 
   // ============================================================

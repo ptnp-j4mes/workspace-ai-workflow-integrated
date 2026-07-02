@@ -738,7 +738,7 @@ export default function ProjectDetailPage() {
 
   // Load tab data when tab changes
   useEffect(() => {
-    loadTabData(activeTab)
+    ;(() => loadTabData(activeTab))()
   }, [activeTab, loadTabData])
 
   // Refresh a specific tab

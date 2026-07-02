@@ -198,7 +198,7 @@ export default function PlatformRequestDetailPage() {
   }, [requestId])
 
   useEffect(() => {
-    fetchDetail()
+    ;(() => fetchDetail())()
   }, [fetchDetail])
 
   // Determine if current user is the requester

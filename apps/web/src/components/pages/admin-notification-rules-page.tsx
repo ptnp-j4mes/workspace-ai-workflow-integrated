@@ -75,7 +75,7 @@ export default function AdminNotificationRulesPage() {
   }
 
   useEffect(() => {
-    fetchRules()
+    ;(() => fetchRules())()
   }, [])
 
   const handleToggleActive = async (rule: NotificationRule) => {

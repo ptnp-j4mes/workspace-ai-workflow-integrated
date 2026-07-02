@@ -555,7 +555,7 @@ function ForceGraph({
       })
     }
 
-    setGraphNodes(gNodes)
+    ;(() => setGraphNodes(gNodes))()
   }, [graphData])
 
   const handleZoomIn = () => setZoom(z => Math.min(z * 1.2, 3))
@@ -1071,8 +1071,8 @@ export default function MemoryVault({ projectId }: MemoryVaultProps) {
   }, [projectId])
 
   useEffect(() => {
-    fetchData()
-    fetchAttachments()
+    ;(() => fetchData())()
+    ;(() => fetchAttachments())()
   }, [fetchData, fetchAttachments])
 
   // Build tree

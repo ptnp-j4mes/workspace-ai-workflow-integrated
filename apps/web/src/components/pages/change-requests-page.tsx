@@ -153,7 +153,7 @@ export default function ChangeRequestsPage() {
   }, [statusFilter, categoryFilter, search])
 
   useEffect(() => {
-    fetchChangeRequests(1)
+    ;(() => fetchChangeRequests(1))()
   }, [fetchChangeRequests])
 
   const handleCreate = async () => {

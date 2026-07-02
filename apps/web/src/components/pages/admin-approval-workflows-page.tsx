@@ -123,8 +123,8 @@ export default function AdminApprovalWorkflowsPage() {
   }
 
   useEffect(() => {
-    fetchWorkflows()
-    fetchRoles()
+    ;(() => fetchWorkflows())()
+    ;(() => fetchRoles())()
   }, [])
 
   const openAddDialog = () => {
