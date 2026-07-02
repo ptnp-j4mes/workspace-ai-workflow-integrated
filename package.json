@@ -10,6 +10,7 @@
     "build": "bun run --cwd apps/api db:generate && bun run --cwd apps/web build",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down -v",
+    "lint": "npm run lint --workspace=apps/web",
     "workflow:validate": "node scripts/validate-ai-workflow.mjs",
     "clean:local": "node scripts/clean-local.mjs",
     "biccorp:validate": "node scripts/validate-biccorp-ai-workflow.mjs"
