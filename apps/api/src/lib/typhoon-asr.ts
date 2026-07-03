@@ -111,6 +111,18 @@ async function splitAudioIntoChunks(filePath: string, chunkDir: string): Promise
   return files.filter((f) => f.startsWith('chunk_')).sort().map((f) => path.join(chunkDir, f))
 }
 
+async function withRateLimitRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      const isRateLimited = err instanceof Error && /request failed: 429\b/.test(err.message)
+      if (!isRateLimited || attempt >= retries) throw err
+      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt))
+    }
+  }
+}
+
 function formatTimestamp(sec: number): string {
   const h = Math.floor(sec / 3600)
   const m = Math.floor((sec % 3600) / 60)
@@ -148,7 +160,7 @@ export async function transcribeAudioFile(filePath: string): Promise<string> {
       const label = `[${formatTimestamp(i * CHUNK_DURATION_SEC)}]`
       try {
         const buffer = await readFile(chunkPaths[i])
-        const text = await transcribeWithTyphoon(buffer, path.basename(chunkPaths[i]))
+        const text = await withRateLimitRetry(() => transcribeWithTyphoon(buffer, path.basename(chunkPaths[i])))
         parts.push(`${label}\n${text}`)
         successCount++
       } catch (chunkError) {
