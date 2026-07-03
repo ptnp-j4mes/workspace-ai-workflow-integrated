@@ -1,5 +1,8 @@
 FROM oven/bun:1
 
+# ffmpeg: splits long meeting recordings into chunks for Typhoon ASR (src/lib/typhoon-asr.ts)
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ENV NODE_ENV=development

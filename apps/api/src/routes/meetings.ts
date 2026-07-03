@@ -2,7 +2,8 @@ import { Elysia } from 'elysia'
 import { db } from '../lib/db'
 import { getAuthUser } from '../lib/api-auth'
 import { executePrompt } from '../lib/ai-service'
-import { writeFile, mkdir } from 'fs/promises'
+import { isTyphoonConfigured, transcribeAudioFile } from '../lib/typhoon-asr'
+import { writeFile, mkdir, readFile } from 'fs/promises'
 import path from 'path'
 
 export const meetingsRoutes = new Elysia({ prefix: '/api/meetings' })
@@ -349,6 +350,62 @@ export const meetingsRoutes = new Elysia({ prefix: '/api/meetings' })
       return { recordings }
     } catch (error) {
       console.error('Get meeting recordings error:', error)
+      set.status = 500
+      return { error: 'Internal server error' }
+    }
+  })
+
+  // POST /api/meetings/:id/recordings/upload - Upload a browser-recorded voice clip
+  .post('/:id/recordings/upload', async ({ request, params, set }) => {
+    try {
+      const user = await getAuthUser(request)
+      if (!user) {
+        set.status = 401
+        return { error: 'Unauthorized' }
+      }
+
+      const { id: meetingId } = params
+
+      const meeting = await db.meeting.findUnique({ where: { id: meetingId } })
+      if (!meeting) {
+        set.status = 404
+        return { error: 'Meeting not found' }
+      }
+
+      const formData = await request.formData()
+      const audio = formData.get('audio')
+      if (!(audio instanceof Blob)) {
+        set.status = 400
+        return { error: 'audio file is required' }
+      }
+
+      // ponytail: no server-side transcoding, whatever the browser records is what gets sent to ASR.
+      // Upgrade path: add ffmpeg conversion here if a format ASR rejects turns out to matter.
+      const format = (audio.type.split('/')[1] || 'webm').split(';')[0]
+      const recordingsDir = path.join(process.cwd(), 'recordings', meetingId)
+      await mkdir(recordingsDir, { recursive: true })
+      const fileName = `recording-${Date.now()}.${format}`
+      const filePath = path.join(recordingsDir, fileName)
+      const buffer = Buffer.from(await audio.arrayBuffer())
+      await writeFile(filePath, buffer)
+
+      const recording = await db.meetingRecording.create({
+        data: {
+          meetingId,
+          filePath: `/recordings/${meetingId}/${fileName}`,
+          fileName,
+          fileSizeBytes: buffer.length,
+          format,
+          status: 'COMPLETED',
+          startedAt: new Date(),
+          endedAt: new Date(),
+          transcriptionStatus: 'PENDING',
+        },
+      })
+
+      return { success: true, recording }
+    } catch (error) {
+      console.error('Recording upload error:', error)
       set.status = 500
       return { error: 'Internal server error' }
     }
@@ -803,18 +860,23 @@ export const meetingsRoutes = new Elysia({ prefix: '/api/meetings' })
 
       if (hasFile) {
         try {
-          // Try to use z-ai-web-dev-sdk for ASR
-          const ZAI = (await import('z-ai-web-dev-sdk')).default
-          const fs = await import('fs/promises')
-
-          // Read the audio file
           const fullPath = path.join(process.cwd(), recording.filePath.replace(/^\//, ''))
-          const audioFile = await fs.readFile(fullPath)
-          const base64Audio = audioFile.toString('base64')
 
-          const zai = await ZAI.create()
-          const response = await zai.audio.asr.create({ file_base64: base64Audio })
-          transcriptText = response.text
+          if (isTyphoonConfigured()) {
+            // Preferred: real Thai/Isan ASR via opentyphoon.ai, chunked for long recordings
+            transcriptText = await transcribeAudioFile(fullPath)
+          } else {
+            // Fallback: z-ai-web-dev-sdk (sandbox SDK, no-op outside its sandbox)
+            const audioBuffer = await readFile(fullPath)
+            const ZAI = (await import('z-ai-web-dev-sdk')).default
+            const zai = await ZAI.create()
+            const response = await zai.audio.asr.create({ file_base64: audioBuffer.toString('base64') })
+            transcriptText = response.text
+          }
+
+          if (!transcriptText || !transcriptText.trim()) {
+            throw new Error('ASR returned empty transcript')
+          }
         } catch (asrError) {
           console.warn('ASR transcription failed, using mock transcript:', asrError)
           transcriptText = generateMockTranscript(meeting.title)
