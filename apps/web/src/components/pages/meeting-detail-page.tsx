@@ -492,8 +492,9 @@ export default function MeetingDetailPage() {
   }
 
   const startVoiceRecording = async () => {
+    let stream: MediaStream | undefined
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/mp4')
@@ -510,9 +511,25 @@ export default function MeetingDetailPage() {
       setVoiceElapsed(0)
       voiceTimerRef.current = setInterval(() => setVoiceElapsed((s) => s + 1), 1000)
     } catch (err) {
+      stream?.getTracks().forEach((track) => track.stop())
       toast.error('Microphone Error', err instanceof Error ? err.message : 'Could not access microphone')
     }
   }
+
+  // Release the mic/timer if the user navigates away mid-recording
+  useEffect(() => {
+    return () => {
+      if (voiceTimerRef.current) {
+        clearInterval(voiceTimerRef.current)
+        voiceTimerRef.current = null
+      }
+      const recorder = mediaRecorderRef.current
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stream.getTracks().forEach((track) => track.stop())
+        recorder.stop()
+      }
+    }
+  }, [])
 
   const stopVoiceRecording = async () => {
     const recorder = mediaRecorderRef.current

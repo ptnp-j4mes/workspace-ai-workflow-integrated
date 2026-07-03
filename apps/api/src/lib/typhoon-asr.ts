@@ -10,6 +10,10 @@ import path from 'path'
 const TYPHOON_ASR_URL = 'https://api.opentyphoon.ai/v1/audio/transcriptions'
 const TYPHOON_ASR_MODEL = 'typhoon-asr-realtime'
 
+// Shared ceiling for the Typhoon HTTP call and spawned ffmpeg/ffprobe processes -
+// none of them should be able to hang a transcribe request indefinitely.
+const DEFAULT_TIMEOUT_MS = 120_000
+
 // ponytail: Typhoon docs don't publish a hard size/duration limit. 10min/chunk is a
 // conservative default sized for typical Whisper-family API limits (~25MB per request).
 // Bump this (or wire it to a real published limit) if Typhoon starts rejecting long chunks.
@@ -29,11 +33,24 @@ export async function transcribeWithTyphoon(audioBuffer: Buffer, fileName: strin
   form.append('file', new Blob([audioBuffer]), fileName)
   form.append('model', TYPHOON_ASR_MODEL)
 
-  const res = await fetch(TYPHOON_ASR_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
+  let res: Response
+  try {
+    res = await fetch(TYPHOON_ASR_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Typhoon ASR request timed out after ${DEFAULT_TIMEOUT_MS}ms`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (!res.ok) {
     throw new Error(`Typhoon ASR request failed: ${res.status} ${await res.text()}`)
@@ -47,15 +64,20 @@ export async function transcribeWithTyphoon(audioBuffer: Buffer, fileName: strin
 // Long-recording support - split via ffmpeg, transcribe chunks, stitch back together
 // ============================================================
 
-function runCommand(cmd: string, args: string[]): Promise<string> {
+function runCommand(cmd: string, args: string[], timeoutMs = DEFAULT_TIMEOUT_MS): Promise<string> {
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, args)
+    const timer = setTimeout(() => {
+      proc.kill('SIGKILL')
+      reject(new Error(`${cmd} timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
     let stdout = ''
     let stderr = ''
     proc.stdout.on('data', (d) => (stdout += d))
     proc.stderr.on('data', (d) => (stderr += d))
     proc.on('error', reject)
     proc.on('close', (code) => {
+      clearTimeout(timer)
       if (code !== 0) {
         reject(new Error(`${cmd} exited ${code}: ${stderr.slice(0, 500)}`))
       } else {
@@ -121,18 +143,27 @@ export async function transcribeAudioFile(filePath: string): Promise<string> {
   try {
     const chunkPaths = await splitAudioIntoChunks(filePath, chunkDir)
     const parts: string[] = []
+    let successCount = 0
     for (let i = 0; i < chunkPaths.length; i++) {
       const label = `[${formatTimestamp(i * CHUNK_DURATION_SEC)}]`
       try {
         const buffer = await readFile(chunkPaths[i])
         const text = await transcribeWithTyphoon(buffer, path.basename(chunkPaths[i]))
         parts.push(`${label}\n${text}`)
+        successCount++
       } catch (chunkError) {
         // One bad chunk (network blip, rate limit) shouldn't discard the rest of a long meeting.
         console.warn(`Typhoon ASR failed for chunk ${i + 1}/${chunkPaths.length}:`, chunkError)
         parts.push(`${label}\n[transcription failed for this segment]`)
       }
     }
+
+    // If every chunk failed, don't return a "successful" transcript made entirely of
+    // placeholders - throw so the caller's mock-transcript fallback kicks in instead.
+    if (successCount === 0) {
+      throw new Error(`Typhoon ASR failed for all ${chunkPaths.length} chunks`)
+    }
+
     return parts.join('\n\n')
   } finally {
     await rm(chunkDir, { recursive: true, force: true })

@@ -379,6 +379,21 @@ export const meetingsRoutes = new Elysia({ prefix: '/api/meetings' })
         return { error: 'audio file is required' }
       }
 
+      const MAX_AUDIO_BYTES = 200 * 1024 * 1024 // 200MB - generous enough for a multi-hour meeting at voice bitrates
+      if (audio.size === 0 || audio.size > MAX_AUDIO_BYTES) {
+        set.status = 413
+        return { error: 'Audio file is empty or exceeds the allowed size' }
+      }
+      // Bun's multipart parser sniffs .webm/.mp4 parts as video/* regardless of the
+      // client-declared audio/* Content-Type, so match on subtype rather than the
+      // audio/ vs video/ prefix (which isn't reliable for these container formats).
+      const ALLOWED_AUDIO_SUBTYPES = ['webm', 'mp4', 'wav', 'wave', 'x-wav', 'mpeg', 'mp3', 'ogg', 'opus', 'm4a', 'x-m4a', 'aac', 'flac']
+      const subtype = audio.type.split('/')[1]?.split(';')[0]?.toLowerCase()
+      if (audio.type && subtype && !ALLOWED_AUDIO_SUBTYPES.includes(subtype)) {
+        set.status = 400
+        return { error: 'Uploaded file must be an audio recording' }
+      }
+
       // ponytail: no server-side transcoding, whatever the browser records is what gets sent to ASR.
       // Upgrade path: add ffmpeg conversion here if a format ASR rejects turns out to matter.
       const format = (audio.type.split('/')[1] || 'webm').split(';')[0]
