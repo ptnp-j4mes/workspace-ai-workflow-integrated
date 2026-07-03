@@ -307,6 +307,11 @@ export default function MeetingDetailPage() {
   const [exportFormat, setExportFormat] = useState<string>('MARKDOWN')
   const [recordings, setRecordings] = useState<Recording[]>([])
 
+  // Voice recording state
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false)
+  const [voiceElapsed, setVoiceElapsed] = useState(0)
+  const [voiceProcessing, setVoiceProcessing] = useState(false)
+
   // Google Auth state
   const [googleAuth, setGoogleAuth] = useState<GoogleAuthStatus | null>(null)
   const [googleConnecting, setGoogleConnecting] = useState(false)
@@ -315,6 +320,11 @@ export default function MeetingDetailPage() {
 
   // WebSocket ref
   const socketRef = useRef<Socket | null>(null)
+
+  // Voice recording refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const voiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchMeeting = useCallback(async () => {
     if (!meetingId) return
@@ -478,6 +488,95 @@ export default function MeetingDetailPage() {
       toast.error('Transcription Error', err instanceof Error ? err.message : 'Failed to transcribe')
     } finally {
       setTranscribing(false)
+    }
+  }
+
+  const startVoiceRecording = async () => {
+    let stream: MediaStream | undefined
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+          ? 'audio/mp4'
+          : ''
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsVoiceRecording(true)
+      setVoiceElapsed(0)
+      voiceTimerRef.current = setInterval(() => setVoiceElapsed((s) => s + 1), 1000)
+    } catch (err) {
+      stream?.getTracks().forEach((track) => track.stop())
+      toast.error('Microphone Error', err instanceof Error ? err.message : 'Could not access microphone')
+    }
+  }
+
+  // Release the mic/timer if the user navigates away mid-recording
+  useEffect(() => {
+    return () => {
+      if (voiceTimerRef.current) {
+        clearInterval(voiceTimerRef.current)
+        voiceTimerRef.current = null
+      }
+      const recorder = mediaRecorderRef.current
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stream.getTracks().forEach((track) => track.stop())
+        recorder.stop()
+      }
+    }
+  }, [])
+
+  const stopVoiceRecording = async () => {
+    const recorder = mediaRecorderRef.current
+    if (!recorder || !meetingId) return
+
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current)
+      voiceTimerRef.current = null
+    }
+    setIsVoiceRecording(false)
+
+    await new Promise<void>((resolve) => {
+      recorder.onstop = () => {
+        recorder.stream.getTracks().forEach((track) => track.stop())
+        resolve()
+      }
+      recorder.stop()
+    })
+
+    setVoiceProcessing(true)
+    try {
+      const mimeType = recorder.mimeType || 'audio/webm'
+      const ext = mimeType.split('/')[1]?.split(';')[0] || 'webm'
+      const blob = new Blob(audioChunksRef.current, { type: mimeType })
+      const formData = new FormData()
+      formData.append('audio', blob, `recording.${ext}`)
+
+      const uploadResult = await api.post<{ recording: Recording }>(
+        `/api/meetings/${meetingId}/recordings/upload`,
+        formData
+      )
+
+      toast.info('Transcribing', 'Voice clip uploaded, transcribing now...')
+
+      const transcribeResult = await api.post<{ transcript: string }>(
+        `/api/meetings/${meetingId}/transcribe`,
+        { recordingId: uploadResult.recording.id }
+      )
+
+      setTranscriptText(transcribeResult.transcript || '')
+      toast.success('Transcription Complete', 'Voice recording transcribed successfully.')
+      fetchMeeting()
+      fetchRecordings()
+    } catch (err) {
+      toast.error('Voice Recording Error', err instanceof Error ? err.message : 'Failed to process recording')
+    } finally {
+      setVoiceProcessing(false)
     }
   }
 
@@ -983,6 +1082,39 @@ export default function MeetingDetailPage() {
                   {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   Export Now
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Voice Recording */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Mic className="h-4 w-4" />
+                Quick Voice Recording
+              </CardTitle>
+              <CardDescription>
+                Record from your microphone and transcribe it to text directly — no bot required.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                {isVoiceRecording ? (
+                  <Button variant="destructive" onClick={stopVoiceRecording} className="gap-2">
+                    <Square className="h-4 w-4" />
+                    Stop ({String(Math.floor(voiceElapsed / 60)).padStart(2, '0')}:{String(voiceElapsed % 60).padStart(2, '0')})
+                  </Button>
+                ) : (
+                  <Button onClick={startVoiceRecording} disabled={voiceProcessing} className="gap-2">
+                    {voiceProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+                    {voiceProcessing ? 'Transcribing...' : 'Record Voice'}
+                  </Button>
+                )}
+                {isVoiceRecording && (
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> Recording...
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>

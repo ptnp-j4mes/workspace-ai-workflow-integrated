@@ -54,3 +54,6 @@ dev.out.log
 server.log
 # Skills directory
 /skills/
+
+# meeting voice recordings (runtime-generated binary audio)
+/apps/api/recordings/

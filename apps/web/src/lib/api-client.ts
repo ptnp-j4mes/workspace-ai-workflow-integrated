@@ -67,9 +67,12 @@ class ApiClient {
     isRetry: boolean = false
   ): Promise<T> {
     const token = this.getToken()
+    const isFormData = body instanceof FormData
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+    const headers: Record<string, string> = {}
+    // Skip Content-Type for FormData - the browser sets the multipart boundary itself.
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json'
     }
 
     if (token) {
@@ -82,7 +85,7 @@ class ApiClient {
     }
 
     if (body !== undefined && method !== 'GET' && method !== 'HEAD') {
-      options.body = JSON.stringify(body)
+      options.body = isFormData ? body : JSON.stringify(body)
     }
 
     const response = await fetch(`${API_BASE_URL}${url}`, options)
